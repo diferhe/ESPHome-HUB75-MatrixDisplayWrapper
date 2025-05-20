@@ -1,0 +1,100 @@
+esphome:
+  name: matrix-display
+  friendly_name: Matrix Display
+  platformio_options:
+    build_flags:
+      - "-std=gnu++17"
+    build_unflags:
+      - "-std=gnu++11"
+    board_build.arduino.memory_type: qio_qspi
+    board_build.flash_mode: qio
+    board_build.psram_type: qio
+    # board_upload.flash_size: 4MB
+    board_upload.maximum_size: 4194304
+    board_build.extra_flags:
+      - "-DBOARD_HAS_PSRAM"
+
+external_components:
+  - source:
+        type: local
+        path: ./components
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+
+font:
+  # gfonts://family[@weight]
+  - file: "gfonts://Roboto"
+    id: roboto
+    size: 10
+
+  - file: "gfonts://Noto+Emoji&display=swap"
+    id: emoji
+    size: 10  
+    glyphs: ["\U0001F525", "\U0001F4A4"]
+  
+  - file: "gfonts://Noto+Color+Emoji"
+    id: emoji_color
+    size: 16
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 900
+    id: roboto_16
+    size: 16
+
+  - file: "gfonts://Material+Symbols+Outlined"
+    id: icons_16
+    size: 16
+    glyphs: ["\U0000e425"] # mdi-timer
+  
+
+display:
+  - platform: hub75_matrix_display
+    id: matrix
+    width: 128
+    height: 32
+    R1_pin: 12
+    G1_pin: 13
+    B1_pin: 11
+    R2_pin: 7
+    G2_pin: 8
+    B2_pin: 9
+    A_pin: 16
+    B_pin: 6
+    C_pin: 5
+    D_pin: 4
+    E_pin: 10
+    LAT_pin: 2
+    OE_pin: 1
+    CLK_pin: 3
+    latch_blanking: 2
+    clock_phase: false
+    i2sspeed: HZ_20M
+    virtual_display:
+        vd_width: 64
+        vd_height: 64
+        vd_scan_type: FOUR_SCAN_64PX_HIGH
+        vd_chain_type: CHAIN_NONE
+        
+
+    lambda: |-
+      it.print(0, 0, id(roboto), "Hello World!");
+      it.print(0,32,id(icons_16), "\U0000e425");
+      it.print(0, 16, id(roboto), "Hello World2!");
+#it.strftime(0, 64, id(roboto_16), TextAlign::BASELINE_LEFT, "%H:%M", id(ha_time).now());
+
+switch:
+  - platform: hub75_matrix_display
+    matrix_id: matrix
+    name: "Power"
+    restore_mode: ALWAYS_ON
+    id: power
+
+number:
+  - platform: hub75_matrix_display
+    matrix_id: matrix
+    name: "Brightness"
