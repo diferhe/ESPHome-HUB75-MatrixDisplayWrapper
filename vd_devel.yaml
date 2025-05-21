@@ -75,10 +75,10 @@ display:
     clock_phase: false
     i2sspeed: HZ_20M
     virtual_display:
-        vd_width: 64
-        vd_height: 64
-        vd_scan_type: FOUR_SCAN_64PX_HIGH
-        vd_chain_type: CHAIN_NONE
+        width: 64
+        height: 64
+        scan_type: FOUR_SCAN_64PX_HIGH
+        chain_type: CHAIN_NONE
         
 
     lambda: |-

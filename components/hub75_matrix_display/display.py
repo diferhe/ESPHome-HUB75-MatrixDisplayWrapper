@@ -1,4 +1,3 @@
-from tkinter import W
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome import pins
@@ -42,18 +41,16 @@ CLOCK_PHASE = "clock_phase"
 USE_CUSTOM_LIBRARY = "use_custom_library"
 
 VIRTUAL_DISPLAY = "virtual_display"
-VD_WIDTH = "vd_width"
-VD_HEIGHT = "vd_height"
-VD_SCAN_TYPE = "vd_scan_type"
-VD_CHAIN_TYPE = "vd_chain_type"
+SCAN_TYPE = "scan_type"
+CHAIN_TYPE = "chain_type"
+COLUMNS = "columns"
+ROWS = "rows"
 
 matrix_display_ns = cg.esphome_ns.namespace("matrix_display")
 MatrixDisplay = matrix_display_ns.class_(
     "MatrixDisplay", cg.PollingComponent, display.DisplayBuffer
 )
-VirtualMatrixDisplay = matrix_display_ns.class_(
-    "VirtualMatrixDisplay", MatrixDisplay
-)
+VirtualMatrixDisplay = matrix_display_ns.class_("VirtualMatrixDisplay", MatrixDisplay)
 
 shift_driver = cg.global_ns.namespace("HUB75_I2S_CFG").enum("shift_driver")
 DRIVERS = {
@@ -75,7 +72,7 @@ CLOCK_SPEEDS = {
     "HZ_20M": clk_speed.HZ_20M,
 }
 
-#FIXME: Avoid polluting global namespace
+# FIXME: Avoid polluting global namespace
 scan_type = cg.global_ns.enum("PANEL_SCAN_TYPE")
 SCAN_TYPES = {
     "STANDARD_TWO_SCAN": scan_type.STANDARD_TWO_SCAN,
@@ -86,7 +83,7 @@ SCAN_TYPES = {
     "FOUR_SCAN_64PX_HIGH": scan_type.FOUR_SCAN_64PX_HIGH,
 }
 
-#FIXME: Avoid polluting global namespace
+# FIXME: Avoid polluting global namespace
 panel_chain_type = cg.global_ns.enum("PANEL_CHAIN_TYPE")
 CHAIN_TYPES = {
     "CHAIN_NONE": panel_chain_type.CHAIN_NONE,
@@ -100,7 +97,20 @@ CHAIN_TYPES = {
     "CHAIN_BOTTOM_LEFT_UP_ZZ": panel_chain_type.CHAIN_BOTTOM_LEFT_UP_ZZ,
 }
 
-
+VD_SCHEMA = cv.Schema(
+    {
+        cv.Required(CONF_WIDTH): cv.positive_int,
+        cv.Required(CONF_HEIGHT): cv.positive_int,
+        cv.Optional(ROWS, default=1): cv.positive_int,
+        cv.Optional(COLUMNS, default=1): cv.positive_int,
+        cv.Optional(SCAN_TYPE, default="STANDARD_TWO_SCAN"): cv.enum(
+            SCAN_TYPES, upper=True, space="_"
+        ),
+        cv.Optional(CHAIN_TYPE, default="CHAIN_NONE"): cv.enum(
+            CHAIN_TYPES, upper=True, space="_"
+        ),
+    }
+)
 CONFIG_SCHEMA = display.FULL_DISPLAY_SCHEMA.extend(
     {
         cv.GenerateID(): cv.declare_id(VirtualMatrixDisplay),
@@ -130,21 +140,12 @@ CONFIG_SCHEMA = display.FULL_DISPLAY_SCHEMA.extend(
         cv.Optional(I2SSPEED): cv.enum(CLOCK_SPEEDS, upper=True, space="_"),
         cv.Optional(LATCH_BLANKING): cv.positive_int,
         cv.Optional(CLOCK_PHASE): cv.boolean,
-        cv.Optional(VIRTUAL_DISPLAY): cv.Schema(
-            {
-                cv.Required(VD_WIDTH): cv.positive_int,
-                cv.Required(VD_HEIGHT): cv.positive_int,
-                cv.Optional(VD_SCAN_TYPE, default="STANDARD_TWO_SCAN"): cv.enum(SCAN_TYPES, upper=True, space="_"),
-                cv.Optional(VD_CHAIN_TYPE, default="CHAIN_NONE"): cv.enum(
-                    CHAIN_TYPES, upper=True, space="_"
-                ),
-            }
-        ),
+        cv.Optional(VIRTUAL_DISPLAY): VD_SCHEMA,
     }
 )
 
 
-async def to_code(config):
+async def to_code(config: dict):
     if not config[USE_CUSTOM_LIBRARY]:
         cg.add_library("SPI", None)
         cg.add_library("Wire", None)
@@ -154,9 +155,13 @@ async def to_code(config):
             "https://github.com/diferhe/ESP32-HUB75-MatrixPanel-DMA#optional_logging",
             None,
         )
-        
-    var = cg.new_Pvariable(config[CONF_ID], cg.TemplateArguments(config[VIRTUAL_DISPLAY][VD_CHAIN_TYPE], config[VIRTUAL_DISPLAY][VD_SCAN_TYPE]),
-                           1,1,config[VIRTUAL_DISPLAY][VD_WIDTH], config[VIRTUAL_DISPLAY][VD_HEIGHT])
+    if vd_config := config.get(VIRTUAL_DISPLAY):
+        template_args = (vd_config.get(a) for a in (CHAIN_TYPE, SCAN_TYPE))
+        args = (vd_config.get(a) for a in (ROWS, COLUMNS, CONF_WIDTH, CONF_HEIGHT))
+    else:
+        template_args = ()
+        args = (1, 1, config[CONF_WIDTH], config[CONF_HEIGHT])
+    var = cg.new_Pvariable(config[CONF_ID], cg.TemplateArguments(*template_args), *args)
     cg.add(var.set_panel_width(config[CONF_WIDTH]))
     cg.add(var.set_panel_height(config[CONF_HEIGHT]))
     cg.add(var.set_chain_length(config[CHAIN_LENGTH]))
@@ -213,7 +218,6 @@ async def to_code(config):
 
     if CLOCK_PHASE in config:
         cg.add(var.set_clock_phase(config[CLOCK_PHASE]))
-
 
     await display.register_display(var, config)
 
