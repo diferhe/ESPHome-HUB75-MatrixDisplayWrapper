@@ -73,6 +73,14 @@ namespace esphome
                 // Update pixel value in buffer
                 this->virtual_display_->drawPixelRGB888(x, y, color.r, color.g, color.b);
             }
+            int get_width_internal() override
+            {
+                return this->_panel_res_x;
+            }
+            int get_height_internal() override
+            {
+                return this->_panel_res_y;
+            }
         };
     } // namespace matrix_display
 } // namespace esphome
